@@ -1,0 +1,4 @@
+#!/bin/bash
+
+emacsclient -c -a 'emacs' --eval '(setq initial-buffer-choice (lambda () (get-buffer "*dashboard*")))'
+

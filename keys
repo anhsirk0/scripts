@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+if [ "$1" == "engrammer" ]; then
+    systemctl stop qwerty.service --user
+    systemctl disable qwerty.service --user
+    systemctl start kmonad.service --user
+elif [ "$1" == "qwerty" ]; then
+    systemctl stop kmonad.service --user
+    systemctl enable qwerty.service --user --now
+else
+    echo "Usage: keys [qwerty|engrammer]"
+    echo "Example: keys qwerty"
+    echo "Example: keys engrammer"
+fi
+

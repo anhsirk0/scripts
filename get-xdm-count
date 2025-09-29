@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+sub main {
+    my @window_list = split "\n", `wmctrl -l`;
+    my $count = 0;
+
+    for my $i (1 .. scalar @window_list) {
+        my ($idx, $h, $name) = $window_list[$i -1] =~ m/^.*?\s+(\d+) (.*?) (.*?)$/;
+        if ($name =~ m/^\[\d+%\]/) {
+            $count++;
+        }
+    }
+    
+    if ($count > 0) {
+        print $count;
+    } else {
+        print "";
+    }
+}
+
+main();

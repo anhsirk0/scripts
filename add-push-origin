@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+git remote set-url --add --push origin https://codeberg.org/anhsirk0/$1.git
+git remote set-url --add --push origin https://github.com/anhsirk0/$1.git

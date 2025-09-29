@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+for (@ARGV) {
+    my $mp3name = $_;
+    $mp3name =~ s/.opus/.mp3/;
+    system("ffmpeg -i '$_' -c:a libmp3lame -q:a 0 '$mp3name'");
+    # system qq{arng -iname "*$pattern*" -dir "$dir" -v -nl};    
+}
+

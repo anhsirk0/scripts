@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+config_dir="$HOME/.config/myshell"
+
+clone-repo-and-copy () {
+    git clone https://github.com/anhsirk0/shell-config.git /tmp/myshell --depth 1
+    rm /tmp/myshell/.git* /tmp/myshell/README.md -rf
+    cp -ruv /tmp/myshell/* $config_dir/
+    rm /tmp/myshell -rf
+    echo "cloned repo and copied to $HOME/.config/myshell"
+}
+
+update-fm6000 () {
+    url="https://raw.githubusercontent.com/anhsirk0/fetch-master-6000/master/fm6000.pl"
+    curl $url --output $config_dir/scripts/fm6000 -s
+    echo "Updated fm6000"
+}
+
+update-pere () {
+    url="https://raw.githubusercontent.com/anhsirk0/pere/master/pere.pl"
+    curl $url --output $config_dir/scripts/pere -s
+    echo "Updated pere"
+}
+
+update-volume () {
+    url="https://raw.githubusercontent.com/anhsirk0/volume/master/volume.pl"
+    curl $url --output $config_dir/scripts/volume -s
+    echo "Updated volume"
+}
+
+clone-repo-and-copy
+if [ ! -d "$config_dir/scripts" ]; then
+    mkdir $config_dir/scripts
+fi
+update-fm6000
+update-pere
+update-volume
+
+echo "Making scripts and binaries executable 'chmod +x $config_dir/*/*'"
+chmod +x $config_dir/*/*

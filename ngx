@@ -1,0 +1,251 @@
+#!/usr/bin/env perl
+
+use strict;
+use Term::ANSIColor;
+use Cwd qw(getcwd);
+use File::Path qw(make_path);
+use warnings;
+
+
+my $name = $ARGV[0];
+exit unless ($name);
+
+sub to_pascal {
+    my $str = shift;
+    $str =~ s/[^a-zA-Z0-9]/ /g;
+    my @words = map { ucfirst(lc($_)) } split(/\s+/, $str);
+    return join('', @words);
+}
+
+sub to_kebab {
+    my $str = shift;
+    $str = lc($str);
+    $str =~ s/[^a-z0-9]+/-/g;
+    $str =~ s/^-|-$//g;
+    return $str;
+}
+
+my $name_pascal = to_pascal($name);
+my $name_kebab = to_kebab($name);
+
+# colors
+my %COLOR = (
+    "GREEN"   => "bright_green",
+    "YELLOW"  => "yellow",
+    "MAGENTA" => "bright_magenta",
+    "RED"     => "red",
+    "CYAN"    => "bright_cyan",
+    );
+
+sub error {
+    my $msg = shift;
+    die colored("[ngx] $msg", $COLOR{RED}) . "\n";
+}
+
+sub info {
+    my $msg = shift;
+    print colored("[ngx] $msg", $COLOR{GREEN}) . "\n";
+}
+
+sub make_component_content {
+    my $content = q{import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { Language } from '@/interfaces/common';
+import { MetaService, TranslationService } from 'services/core';
+import * as MetaInfo from '@/helpers/metaInfo';
+
+@Component({
+  selector: 'app-:kebab:',
+  templateUrl: './:kebab:.component.html',
+  styleUrl: './:kebab:.component.scss',
+})
+export class :pascal:Component implements OnInit, OnDestroy {
+  // Subscriptions
+  private subLang: Subscription = Subscription.EMPTY;
+
+  constructor(
+    private metaService: MetaService,
+    private translationService: TranslationService
+  ) {}
+
+  ngOnInit(): void {
+    this.updateMeta(this.translationService.getCurrentLanguage());
+    this.subLang = this.translationService
+      .getCurrentLanguageAsObservable()
+      .subscribe(lang => this.updateMeta(lang));
+  }
+
+  private updateMeta(lang: Language) {
+    const info = MetaInfo.all[MetaInfo.Page.:pascal:];
+    this.metaService.updateTitle(info[lang].title);
+    this.metaService.updateDescription(info[lang].description);
+  }
+
+  ngOnDestroy(): void {
+    this.subLang.unsubscribe();
+  }
+}
+};
+
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    return $content;
+}
+
+sub make_routing_content {
+    my $content = q{import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { :pascal:Component } from './:kebab:.component';
+
+const routes: Routes = [{ path: '', component: :pascal:Component }];
+
+@NgModule({
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule],
+})
+export class :pascal:RoutingModule {}
+};
+
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    return $content;
+}
+
+sub make_module_content {
+    my $content = q{import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
+import { :pascal:Component } from './:kebab:.component';
+
+@NgModule({
+  declarations: [:pascal:Component],
+  imports: [CommonModule, TranslateModule],
+})
+export class :pascal:Module {}
+};
+
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    return $content;
+}
+
+
+  # <img
+  #   class="banner-img"
+  #   src="assets/images/jpg/:kebab:-banner.jpg"
+  #   alt="banner" />
+
+sub make_standalone_component_content {
+    my $content = q{import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-:kebab:',
+  standalone: true,
+  imports: [],
+  templateUrl: './:kebab:.component.html',
+  styleUrl: './:kebab:.component.scss'
+})
+export class :pascal:Component {
+
+}
+};
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    return $content;    
+}
+
+sub make_html_content {
+    my $content = q{<article class="prose container">
+  <h1> :pascal: </h1>
+</article>
+};
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    return $content;
+}
+
+sub make_scss_content {
+    return q{@import 'src/theme/prose';
+
+// override prose styles
+.prose {
+  padding: 16px;
+  margin-top: 16px;
+  margin-bottom: 0px;
+}
+};
+}
+
+sub update_spot_module {
+    my $spot_module = "spot.module.ts";
+    my $content;
+    my $prev_import_line = 1;
+    open(FH, '<' . $spot_module) or die "Unable to open\n";
+    while(<FH>) {
+        my $current_line_import = $_ =~ m/^import/;
+        if ($prev_import_line && !$current_line_import) {
+            $content .= "import { :pascal:Component } from './:kebab:/:kebab:.component';\n\n";
+            $prev_import_line = 0;
+            next;
+        }
+
+        if ($_ eq "  ],\n") {
+            $content .= "    :pascal:Component,\n";
+        }
+        $content .= $_;
+    }
+    close(FH);
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    # write spot_module
+    open(FH, '>' . $spot_module) or die "Unable to open\n";
+    print FH $content;
+    close(FH);
+}
+
+sub update_spot_html {
+    my $spot_html = "spot/spot.component.html";
+    my $content;
+    open(FH, '<' . $spot_html) or die "Unable to open\n";
+    while(<FH>) {
+        if ($_ =~ m/route !== /) {
+            my ($prev_conditions) = $_ =~ /^.*\((.*)\).*$/;
+            my $conditions = $prev_conditions . " && route !== ':kebab:'";
+            $_ =~ s/$prev_conditions/$conditions/g;
+        }
+        $content .= $_;
+    }
+    close(FH);
+    s/:kebab:/$name_kebab/g, s/:pascal:/$name_pascal/g for $content;
+    # write spot_html
+    open(FH, '>' . $spot_html) or die "Unable to open\n";
+    print FH $content;
+    close(FH);
+}
+
+
+sub create_file {
+    my ($file_name, $content) = @_;
+    open(FH, '>', $file_name) or error("Could not create file '$file_name'");
+    print FH $content;
+    close FH;
+    info("Created '$file_name'");
+}
+
+sub main {
+    print colored("[ngx] Creating files for '$name'", $COLOR{YELLOW}) . "\n";
+
+    error("Directory '$name' already exists") if (-d $name);
+    error(("Cant make directory '$name'")) unless make_path($name);
+
+    update_spot_module();
+    update_spot_html();
+    chdir($name);
+
+    create_file("$name_kebab.component.html", make_html_content());
+    create_file("$name_kebab.component.scss", make_scss_content());
+    # create_file("$name_kebab.component.scss", q{@import 'src/theme/prose';});
+    # create_file("$name_kebab.component.ts", make_component_content());
+    create_file("$name_kebab.component.ts", make_standalone_component_content());
+    # create_file("$name_kebab.module.ts", make_module_content());
+    # create_file("$name_kebab-routing.module.ts", make_routing_content());
+    print colored("[ngx] Created 3 files for '$name'", $COLOR{GREEN}) . "\n";
+    print colored("[ngx] Updated module & html", $COLOR{GREEN}) . "\n";
+
+}
+
+main()

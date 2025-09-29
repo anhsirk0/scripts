@@ -1,0 +1,59 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+local $| = 1;
+
+sub message {
+    my $msg = shift;
+    print "[log] $msg\n";
+}
+
+sub click {
+    my ( $x, $y ) = @_;
+    system("xdotool mousemove $x $y click 1");
+}
+
+sub press_enter {
+    system("xdotool key Return");
+}
+
+sub download {
+    click( 38, 1020 );
+    sleep(4);
+    click( 1755, 1016 );
+    sleep(12);
+    click( 1740, 738 );
+    sleep(1);
+    press_enter();
+}
+
+sub progress_bar {
+    my ( $current, $total ) = @_;
+    my $char       = "█";
+    my $bar_length = 50;
+    my $progress   = int( $bar_length * $current / $total );
+    my $bar        = $char x $progress . '-' x ( $bar_length - $progress );
+    print "\r$bar " . sprintf( "%.d%%", ( $current / $total ) * 100 );
+}
+
+sub halt {
+    my $seconds = shift;
+    for my $i ( 0 .. $seconds ) {
+        progress_bar( $i, $seconds );
+        sleep(1);
+    }
+    print "\n";
+}
+
+sub main {
+    my $count = $ARGV[0] || 1;
+    for my $i ( 1 .. $count ) {
+        message("Downloading $i ...");
+        download();
+        halt( $i % 2 == 0 ? 80 : 60 );
+    }
+}
+
+main()

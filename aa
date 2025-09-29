@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+my $pattern = $ARGV[0];
+exit unless ($pattern);
+
+my $dir = $ARGV[1] || ucfirst($pattern);
+
+system qq{arng -iname "*$pattern*" -dir "$dir" -v -nl};
+

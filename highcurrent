@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+alacritty -e bash -c 'cd /mnt/projects/React/highcurrent && ~/.config/myshell/scripts/runserver' &
+alacritty -e bash -c 'cd /mnt/projects/Nest/tendrils && ~/.config/myshell/scripts/runserver' &
+firefox-developer-edition http://localhost:5173/ &

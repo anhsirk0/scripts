@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+mouse_id=$(xinput --list --short | awk '/Logitech/ { print $7 }' | cut -d"=" -f2)
+xinput set-button-map ${mouse_id} 3 2 1

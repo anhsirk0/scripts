@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Term::ANSIColor;
+use Cwd qw( getcwd );
+
+$| = 1;
+
+sub error_exit {
+    print colored("Not a rescript project", "red") . "\n";
+    exit(1);
+}
+
+sub main {
+    error_exit() unless -f "rescript.json";
+    my $dir = getcwd();
+    # system("alacritty -e bash -c 'cd $dir && pnpm run res:dev' &");
+    # system("alacritty -e bash -c 'cd $dir && pnpm dev' &");
+    system("st -e bash -c 'cd $dir && pnpm run res:dev' &");
+    system("st -e bash -c 'cd $dir && pnpm dev' &");    
+    # system("pnpm dev");
+}
+
+main();

@@ -1,0 +1,219 @@
+#!/usr/bin/env perl
+
+use strict;
+use File::Find;
+use File::Basename;
+use Getopt::Long;
+use Term::ANSIColor;
+use warnings;
+
+# for cli args
+my $HELP;
+my $LIST;
+my $VERBOSE;
+my $CLIPBOARD;
+
+my $DATA = '';
+my @LOGS = ();
+my $ACTION_DIR = $ENV{HOME} . "/.config/stringman/actions";
+my @DEFAULT_ACTIONS = (
+    "append",
+    "prepend",
+    "upcase",
+    "downcase",
+    "capitalize",
+    "titlecase",
+    "replace",
+    "replace_all"
+    );
+my @USER_ACTIONS = ();
+my %COLOR = (
+    "GREEN"   => "bright_green",
+    "YELLOW"  => "yellow",
+    "GREY"    => "bright_white",
+    "MAGENTA" => "bright_magenta",
+    "RED"     => "bright_red",
+    "CYAN"    => "bright_cyan",
+    "BLUE"    => "bright_blue"
+    );
+
+# wanted sub for finding files
+sub wanted {
+    my $file_name = basename($File::Find::name);
+    push(@USER_ACTIONS, $file_name) if (-f);
+}
+
+sub to_append {
+    my $str = shift;
+    my $delim = substr($str, 0, 1);
+    my ($content) = $str =~ m/^${delim}(.*)${delim}$/;
+    my $data = $DATA . $content;
+    push @LOGS, "APPEND: '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub to_prepend {
+    my $str = shift;
+    my $delim = substr($str, 0, 1);
+    my ($content) = $str =~ m/^${delim}(.*)${delim}$/;
+    my $data = $content . $DATA;
+    push @LOGS, "PREPEND: '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub to_upcase {
+    my $data = uc $DATA;
+    push @LOGS, "UPCASE: '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub to_downcase {
+    my $data = lc $DATA;
+    push @LOGS, "DOWNCASE: '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub to_capitalize {
+    my $data = ucfirst $DATA;
+    push @LOGS, "CAPITALIZE: '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub to_titlecase {
+    my $data = $DATA;
+    $data =~ s/([\w']+)/\u\L$1/g;
+    push @LOGS, "TITLECASE: '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub to_replace {
+    my ($replace, $all) = @_;
+    my $action = "REPLACE";
+    my $delim = substr($replace, 0, 1);
+    my ($from, $rest) = $replace =~ m/^${delim}(.*)${delim},\s+(.*)$/;
+    my $is_rgx = $delim eq "/";
+    $delim = substr($rest, 0, 1);
+    my ($to) = $rest =~ m/^${delim}(.*)${delim}$/;
+
+    $from = quotemeta($from) unless ($is_rgx);
+
+    my $data = $DATA;
+    if ($all) {
+        $data =~ s/$from/$to/g;
+        $action = "REPLACE_ALL";
+    } else {
+        $data =~ s/$from/$to/;
+    }
+    push @LOGS, "$action: $from -> $to : '$DATA' -> '$data'";
+    $DATA = $data;
+}
+
+sub parse_args {
+    GetOptions (
+        "clipboard|c" => \$CLIPBOARD,
+        "help|h" => \$HELP,
+        "list|l" => \$LIST,
+        "verbose|v" => \$VERBOSE,
+        ) or die("Error in command line arguments\n");
+    print_help_and_exit(0) if $HELP;
+}
+
+sub apply_action {
+    my $name = shift;
+    my ($append) = $name =~ m/^append\((.*)\)$/i;
+    to_append($append) if ($append);
+
+    my ($prepend) = $name =~ m/^prepend\((.*)\)$/i;
+    to_prepend($prepend) if ($prepend);
+
+    my ($replace) = $name =~ m/^replace\((.*)\)$/i;
+    to_replace($replace) if ($replace);
+
+    my ($replace_all) = $name =~ m/^replace_all\((.*)\)$/i;
+    to_replace($replace_all, 1) if ($replace_all);
+
+    my $act = uc $name;
+    to_capitalize() if ($act eq "CAPITALIZE");
+    to_upcase() if ($act eq "UPCASE");
+    to_titlecase() if ($act eq "TITLECASE");
+    to_downcase() if ($act eq "DOWNCASE");
+}
+
+sub apply_user_action {
+    my $name = shift;
+    my $action_file = $ACTION_DIR . "/$name";
+    unless (-f $action_file) {
+        die("action '$name' does not exists\n");
+    }
+
+    open(FH, "<", $action_file) or die "Unable to open $action_file\n";
+    while(<FH>) {
+        s/\#.*//, s/\s+/ /g, s/(^\s+|\s+$)//, s/\/$//;
+        apply_action($_) if ($_);
+    }
+    close(FH);
+}
+
+sub format_option {
+    my ($short, $long, $desc) = @_;
+    my $text = "\t" . colored("-" . $short, $COLOR{GREEN});
+    my $tabs = "\t" . (length($short . $long) < 9 && "\t");
+    $text .= ", " . colored("--" . $long . " ", $COLOR{GREEN});
+    $text .= $tabs . $desc;
+    return $text . "\n";
+}
+
+sub print_help_and_exit {
+    my $code = shift;
+    printf(
+        "%s\n\n%s\n\n" . # About, Usage
+        "%s \n%s%s%s%s\n" . # Options list
+        "%s\n%s%s%s\n%s%s\n", # Examples
+        colored("stringman", $COLOR{GREEN}) . "\nbasic string manipulations.",
+        colored("USAGE:", $COLOR{YELLOW}) . "\n\tstringman [STR] [ACTIONS*]",
+        colored("OPTIONS:", $COLOR{YELLOW}),
+        format_option("c", "clipboard", "Use clipboard for input/output"),
+        format_option("l", "list", "List available actions"),
+        format_option("h", "help", "Print help information"),
+        format_option("v", "verbose", "Print logs for each action"),
+        colored("EXAMPLES:", $COLOR{YELLOW}),
+        "\tstringman " . colored("\"Test String\"", $COLOR{BLUE}),
+        colored(" \"replace('Test ', '')\"", $COLOR{MAGENTA}),
+        colored(" \"append('man')\"", $COLOR{MAGENTA}),
+        "\tstringman --clipboard" . colored(" upcase", $COLOR{MAGENTA}),
+        colored(" \"prepend('man')\"", $COLOR{MAGENTA}),
+        );
+    exit $code;
+}
+
+sub main {
+    parse_args();
+    find({ wanted => \&wanted }, $ACTION_DIR) if (-d $ACTION_DIR);
+    if ($LIST) {
+        print $_ . "\n" for (@DEFAULT_ACTIONS);
+        print $_ . "\n" for (@USER_ACTIONS);
+        exit;
+    }
+
+    $DATA = $CLIPBOARD ? `xsel --output --clipboard` : shift @ARGV;
+    print_help_and_exit(1) unless($DATA || $ARGV);
+
+    push @LOGS, "INIT: '$DATA'" if ($VERBOSE);
+
+    for (@ARGV) {
+        my ($act_name) = $_ =~ m/^(.*?)(\(|$)/;
+        apply_action($_) if (grep /^$act_name$/i, @DEFAULT_ACTIONS);
+        apply_user_action($act_name) if (grep /^$act_name$/i, @USER_ACTIONS);
+    }
+
+    push @LOGS, "FINAL: '$DATA'" if ($VERBOSE);
+    system("printf '$DATA' | xsel --input --clipboard") if ($CLIPBOARD);
+
+    if (!$VERBOSE) {
+        print $DATA;
+        exit;
+    }
+    print $_ . "\n" for (@LOGS);
+}
+
+main();

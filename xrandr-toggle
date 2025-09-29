@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+my $small = "1368x768";
+my $large = "1920x1080";
+
+sub main {
+    my $xrandr = `xrandr`;
+    my ($current) = $xrandr =~ m/current (\d+)/;
+
+    system("xrandr -s " . ($current =~ m/1920/ ? $small : $large));
+}
+
+main()
