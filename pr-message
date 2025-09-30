@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-url=$(xsel --output --clipboard)
-xdotool type "Hi @jes"
-sleep 1
-xdotool key Return
-xdotool type "Please review PR $url"
